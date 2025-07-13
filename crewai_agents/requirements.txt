@@ -1,0 +1,12 @@
+crewai
+crewai_tools
+pandas
+numpy
+matplotlib
+seaborn
+sqlalchemy
+streamlit
+python-dotenv
+langchain-google-genai
+litellm
+flask-cors
