@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
 import seaborn as sns
@@ -20,7 +20,10 @@ CORS(app)
 
 # Load environment variables
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY", "your-gemini-api-key-here")
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    raise ValueError("Missing GOOGLE_API_KEY in environment variables")
+os.environ["GOOGLE_API_KEY"] = api_key   # ✅ litellm will now use it automatically
 
 # Custom LLM class for litellm integration with CrewAI
 class LitellmLLM:
@@ -223,7 +226,7 @@ def analyze_dataset():
         )
         
         result = analysis_crew.kickoff()
-        analysis_report = result.tasks_output[0].raw
+        analysis_report = result.tasks_output[0].raw   # ✅ only .raw works
         
         return jsonify({
             'success': True,
@@ -249,21 +252,19 @@ def process_query():
         conn = sqlite3.connect(':memory:')
         df.to_sql('data_table', conn, index=False, if_exists='replace')
         
-        # Validation task
+        # Validation task - enforce JSON output
         validation_task = Task(
             description=f"""
             Validate the user query: '{user_query}'.
             Dataset columns: {', '.join(df.columns)}
             
-            1. Check if the query is relevant and feasible
-            2. Identify required columns and operations
-            3. Provide clear interpretation
-            4. If invalid, suggest corrections
-            
-            Return a structured validation report.
+            Return ONLY valid JSON with these keys:
+            - valid: true/false
+            - explanation: string
+            - suggestion: string
             """,
             agent=query_validator,
-            expected_output="A validation report with feasibility assessment."
+            expected_output="JSON with keys: valid, explanation, suggestion"
         )
         
         # SQL generation task
@@ -288,14 +289,19 @@ def process_query():
         )
         
         result = query_crew.kickoff()
-        validation_report = result.tasks_output[0].raw
+        validation_raw = result.tasks_output[0].raw
         sql_query = result.tasks_output[1].raw.strip()
+        
+        # Try parsing JSON validation
+        try:
+            validation_report = json.loads(validation_raw)
+        except Exception:
+            validation_report = {"valid": False, "explanation": validation_raw, "suggestion": ""}
         
         # Execute SQL if valid
         query_result = None
-        if "valid" in validation_report.lower() or "feasible" in validation_report.lower():
+        if validation_report.get("valid"):
             try:
-                # Clean SQL query
                 sql_query = sql_query.replace('```sql', '').replace('```', '').strip()
                 result_df = pd.read_sql_query(sql_query, conn)
                 query_result = {
@@ -333,7 +339,6 @@ def create_visualizations():
         
         visualizations = []
         
-        # Create histogram for first numeric column
         if numeric_cols:
             hist_image = create_visualization(df, 'histogram', numeric_cols[0])
             visualizations.append({
@@ -343,7 +348,6 @@ def create_visualizations():
                 'image': hist_image
             })
         
-        # Create count plot for first categorical column
         if categorical_cols:
             count_image = create_visualization(df, 'countplot', categorical_cols[0])
             visualizations.append({
@@ -353,7 +357,6 @@ def create_visualizations():
                 'image': count_image
             })
         
-        # Create correlation matrix if multiple numeric columns
         if len(numeric_cols) > 1:
             corr_image = create_visualization(df, 'correlation')
             visualizations.append({
