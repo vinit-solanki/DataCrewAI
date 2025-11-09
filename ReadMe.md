@@ -1,5 +1,10 @@
 # DataCrew AI - Intelligent Dataset Analysis Platform
 
+<p align="center">
+    <img src="./architeture.png" alt="DataCrew AI system architecture" />
+</p>
+
+**Figure 1:** System architecture of DataCrew AI.
 A modern web application that combines React.js frontend with Flask backend to provide AI-powered dataset analysis using CrewAI agents.
 
 ## Features
