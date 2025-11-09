@@ -46,7 +46,7 @@ class LitellmLLM:
             return f"Error in LLM call: {str(e)}"
 
 # Initialize custom LLM for Gemini
-llm = LitellmLLM(model="gemini/gemini-1.5-flash", api_key=api_key, temperature=0.5)
+llm = LitellmLLM(model="gemini/gemini-2.5-flash", api_key=api_key, temperature=0.5)
 
 # Define CrewAI Agents
 data_analyst = Agent(

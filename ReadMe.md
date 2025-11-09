@@ -1,5 +1,7 @@
 # DataCrew AI - Intelligent Dataset Analysis Platform
 
+### Refer to the demo working of the project here: https://drive.google.com/file/d/14_jPRpqQGWFD4E2rwbhciZgBhhRAaFF3/view?usp=sharing
+
 <p align="center">
     <img src="./architeture.png" alt="DataCrew AI system architecture" />
 </p>
