@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const API_BASE_URL = "http://localhost:5000/api"
+const API_BASE_URL = "http://localhost:5000"
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -30,23 +30,10 @@ api.interceptors.response.use(
 )
 
 export const apiService = {
-  // Health check
-  healthCheck: async () => {
-    const response = await api.get("/health")
-    return response.data
-  },
-
-  // Get current status
-  getStatus: async () => {
-    const response = await api.get("/status")
-    return response.data
-  },
-
   // Upload file
-  uploadFile: async (file, tableName = "main_table") => {
+  uploadFile: async (file) => {
     const formData = new FormData()
     formData.append("file", file)
-    formData.append("table_name", tableName)
 
     const response = await api.post("/upload", formData, {
       headers: {
@@ -57,14 +44,32 @@ export const apiService = {
   },
 
   // Process query
-  processQuery: async (query) => {
-    const response = await api.post("/query", { query })
+  processQuery: async (datasetId, query) => {
+    const response = await api.post("/query", { dataset_id: datasetId, query })
     return response.data
   },
 
-  // Get dataset summary
-  getDatasetSummary: async () => {
-    const response = await api.get("/summary")
+  // Analyze dataset
+  analyzeDataset: async (datasetId) => {
+    const response = await api.post("/analyze", { dataset_id: datasetId })
+    return response.data
+  },
+
+  // Generate executive dashboard intelligence
+  getDashboardIntelligence: async (datasetId) => {
+    const response = await api.post("/dashboard", { dataset_id: datasetId })
+    return response.data
+  },
+
+  // Generate visualizations
+  createVisualizations: async (datasetId) => {
+    const response = await api.post("/visualize", { dataset_id: datasetId })
+    return response.data
+  },
+
+  // Cleanup dataset files
+  cleanupDataset: async (datasetId) => {
+    const response = await api.post("/cleanup", { dataset_id: datasetId })
     return response.data
   },
 }

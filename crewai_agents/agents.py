@@ -8,33 +8,67 @@ import litellm
 import uuid
 import io
 import os
+import time
 
 # Custom LLM class for litellm integration with CrewAI
 class LitellmLLM:
-    def __init__(self, model, api_key, temperature=0.5):
-        self.model = model
+    def __init__(self, models, api_key, temperature=0.3, max_retries=3, timeout=60):
+        self.models = models if isinstance(models, list) else [models]
         self.api_key = api_key
         self.temperature = temperature
+        self.max_retries = max_retries
+        self.timeout = timeout
+        self.extra_headers = {
+            "HTTP-Referer": openrouter_site_url,
+            "X-Title": openrouter_app_name,
+        }
 
     def call(self, prompt, **kwargs):
-        try:
-            response = litellm.completion(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                api_key=self.api_key,
-                temperature=self.temperature,
-                **kwargs
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"Error in LLM call: {str(e)}"
+        last_error = None
+
+        for model_name in self.models:
+            for attempt in range(1, self.max_retries + 1):
+                try:
+                    response = litellm.completion(
+                        model=model_name,
+                        messages=[{"role": "user", "content": prompt}],
+                        api_key=self.api_key,
+                        api_base="https://openrouter.ai/api/v1",
+                        extra_headers=self.extra_headers,
+                        temperature=self.temperature,
+                        timeout=self.timeout,
+                        **kwargs
+                    )
+                    return response.choices[0].message.content
+                except Exception as e:
+                    last_error = e
+                    if attempt < self.max_retries:
+                        time.sleep(min(2 ** (attempt - 1), 6))
+
+        return f"Error in LLM call after retries and model fallback: {str(last_error)}"
 
 # Load environment variables
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
+api_key = os.getenv("OPENROUTER_API_KEY")
+if not api_key:
+    raise ValueError("Missing OPENROUTER_API_KEY in environment variables")
+
+openrouter_models = [
+    model.strip()
+    for model in os.getenv(
+        "OPENROUTER_MODELS",
+        "openrouter/google/gemini-2.0-flash-001,openrouter/openai/gpt-4o-mini"
+    ).split(',')
+    if model.strip()
+]
+if not openrouter_models:
+    openrouter_models = ["openrouter/google/gemini-2.0-flash-001"]
+
+openrouter_site_url = os.getenv("OPENROUTER_SITE_URL", "http://localhost:5000")
+openrouter_app_name = os.getenv("OPENROUTER_APP_NAME", "NLPtoSQL Detective")
 
 # Initialize LLM
-llm = LitellmLLM(model="gemini/gemini-1.5-flash", api_key=api_key, temperature=0.5)
+llm = LitellmLLM(models=openrouter_models, api_key=api_key, temperature=0.3)
 
 # Define CrewAI Agents
 data_analyst = Agent(
